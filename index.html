@@ -19,13 +19,25 @@
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script>
         // MQTT 連線設定 (可以使用公共測試伺服器)
-        const client = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+        // 修改這一段：使用 HiveMQ 的公共 WebSocket 伺服器
+        const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
 
         function sendFeedCommand() {
             const topic = "my_pet_feeder/cmd";
-            const payload = JSON.stringify({ action: "feed", time: new Date() });
-            client.publish(topic, payload);
-            alert("指令已發送！");
+            const payload = JSON.stringify({ 
+                action: "feed", 
+                device: "Luckfox_Pico",
+                time: new Date().toLocaleTimeString() 
+            });
+            
+            // 檢查連線狀態
+            if (client.connected) {
+                client.publish(topic, payload);
+                console.log("發送成功:", payload);
+                alert("指令已透過雲端發送！");
+            } else {
+                alert("MQTT 尚未連線，請重新整理網頁");
+            }
         }
     </script>
 </body>
