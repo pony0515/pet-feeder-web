@@ -1,44 +1,154 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-    <title>智慧寵物餵食器</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luckfox 智慧餵食器</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
-        .video-box { width: 100%; max-width: 600px; height: 400px; background: #000; margin-bottom: 20px; }
-        .btn-feed { padding: 20px 40px; font-size: 20px; background: #ff9800; color: white; border: none; border-radius: 10px; cursor: pointer; }
+        :root {
+            --primary-color: #ff9800;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: var(--bg-gradient);
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+
+        /* 模擬影像區域 */
+        .video-placeholder {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .online { color: #4caf50; }
+        .offline { color: #f44336; }
+
+        /* 按鈕設計 */
+        .feed-btn {
+            background: var(--primary-color);
+            border: none;
+            padding: 15px 40px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+        }
+
+        .feed-btn:active {
+            transform: scale(0.95);
+        }
+
+        .log-area {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            text-align: left;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 10px;
+            height: 80px;
+            overflow-y: auto;
+        }
+
+        .log-entry { margin-bottom: 5px; border-left: 3px solid var(--primary-color); padding-left: 8px; }
+
     </style>
 </head>
 <body>
-    <h1>我的貓咪餵食器</h1>
-    
-    <div class="video-box" id="videoContainer">
-        <p style="color: white; text-align: center; padding-top: 180px;">等待影像傳輸中...</p>
+
+<div class="container">
+    <div id="conn-status" class="status-badge">● MQTT 連線中...</div>
+    <h1>🐱 智慧餵食器控制</h1>
+
+    <div class="video-placeholder">
+        <div style="font-size: 3rem;">📸</div>
+        <div style="font-size: 0.8rem; opacity: 0.7;">等待 Luckfox 影像串流...</div>
     </div>
 
-    <button class="btn-feed" onclick="sendFeedCommand()">立即餵食 1 份</button>
+    <button class="feed-btn" onclick="sendFeedCommand()">立即餵食</button>
 
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <script>
-        // MQTT 連線設定 (可以使用公共測試伺服器)
-        // 將原本的連線碼改為這行
-        const client = mqtt.connect('wss://mqtt-dashboard.com:8884/mqtt');
+    <div class="log-area" id="logArea">
+        <div class="log-entry">系統就緒...</div>
+    </div>
+</div>
 
-        function sendFeedCommand() {
-            const topic = "my_pet_feeder/cmd";
-            const payload = JSON.stringify({ 
-                action: "feed", 
-                time: new Date().toLocaleTimeString() 
-            });
-            
-            if (client.connected) {
-                client.publish(topic, payload);
-                console.log("發送成功:", payload);
-                // 為了方便測試，我們把訊息印在畫面上
-                const statusDiv = document.getElementById("status");
-                if(statusDiv) statusDiv.innerHTML = "最後發送時間: " + new Date().toLocaleTimeString();
-            } else {
-                alert("MQTT 尚未連線，請檢查網路或稍候再試");
-            }
+<script>
+    const client = mqtt.connect('wss://mqtt-dashboard.com:8884/mqtt');
+    const statusBadge = document.getElementById('conn-status');
+    const logArea = document.getElementById('logArea');
+
+    client.on('connect', () => {
+        statusBadge.innerHTML = "● 雲端已連線";
+        statusBadge.className = "status-badge online";
+    });
+
+    client.on('offline', () => {
+        statusBadge.innerHTML = "● 斷線中";
+        statusBadge.className = "status-badge offline";
+    });
+
+    function addLog(msg) {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logArea.prepend(entry);
+    }
+
+    function sendFeedCommand() {
+        const topic = "my_pet_feeder/cmd";
+        const payload = JSON.stringify({ action: "feed", device: "Web" });
+        
+        if (client.connected) {
+            client.publish(topic, payload);
+            addLog("發送餵食指令成功！");
+        } else {
+            addLog("錯誤：連線已中斷");
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>
