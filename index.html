@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>智慧寵物餵食器</title>
+    <style>
+        .video-box { width: 100%; max-width: 600px; height: 400px; background: #000; margin-bottom: 20px; }
+        .btn-feed { padding: 20px 40px; font-size: 20px; background: #ff9800; color: white; border: none; border-radius: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>我的貓咪餵食器</h1>
+    
+    <div class="video-box" id="videoContainer">
+        <p style="color: white; text-align: center; padding-top: 180px;">等待影像傳輸中...</p>
+    </div>
+
+    <button class="btn-feed" onclick="sendFeedCommand()">立即餵食 1 份</button>
+
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script>
+        // MQTT 連線設定 (可以使用公共測試伺服器)
+        const client = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+
+        function sendFeedCommand() {
+            const topic = "my_pet_feeder/cmd";
+            const payload = JSON.stringify({ action: "feed", time: new Date() });
+            client.publish(topic, payload);
+            alert("指令已發送！");
+        }
+    </script>
+</body>
+</html>
